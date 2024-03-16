@@ -1,0 +1,32 @@
+{
+  "type": "module",
+  "name": "videosdk-auth-endpoint-sample",
+  "version": "1.0.0",
+  "description": "Generate a Video SDK JWT to join Zoom Video SDK sessions with the Video SDK.",
+  "main": "src/index.js",
+  "scripts": {
+    "format": "prettier --write src/*.js",
+    "prepare": "husky install",
+    "start": "node src/index.js"
+  },
+  "author": "Zoom Video Communications, Inc.",
+  "contributors": [
+    {
+      "name": "Tommy Gaessler"
+    },
+    {
+      "name": "James Coon"
+    }
+  ],
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^8.2.0",
+    "express": "^4.18.2",
+    "jsrsasign": "^10.5.25"
+  },
+  "devDependencies": {
+    "husky": "^8.0.0",
+    "prettier": "^3.1.1"
+  }
+}
