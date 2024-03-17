@@ -11,6 +11,7 @@ import {
   matchesStringArray,
   validateRequest
 } from './validations.js'
+import { nanoid } from 'nanoid'
 
 dotenv.config()
 const app = express()
@@ -22,7 +23,7 @@ app.options('*', cors())
 // Validations should match Zoom Video SDK's documentation:
 // https://developers.zoom.us/docs/video-sdk/auth/#payload
 const validator = {
-  role: [isRequired, inNumberArray([0, 1])],
+  roleType: [isRequired, inNumberArray([0, 1])],
   sessionName: [isRequired, isLengthLessThan(200)],
   expirationSeconds: isBetween(1800, 172800),
   userIdentity: isLengthLessThan(35),
@@ -35,7 +36,7 @@ const validator = {
 
 const coerceRequestBody = (body) => ({
   ...body,
-  ...['role', 'expirationSeconds', 'cloudRecordingOption', 'cloudRecordingElection', 'audioCompatibleMode'].reduce(
+  ...['roleType', 'expirationSeconds', 'cloudRecordingOption', 'cloudRecordingElection', 'audioCompatibleMode'].reduce(
     (acc, cur) => ({ ...acc, [cur]: typeof body[cur] === 'string' ? parseInt(body[cur]) : body[cur] }),
     {}
   )
@@ -45,43 +46,49 @@ const joinGeoRegions = (geoRegions) => toStringArray(geoRegions)?.join(',')
 
 app.post('/generateToken', (req, res) => {
   const requestBody = coerceRequestBody(req.body)
+  
+  if(!requestBody.sessionKey && requestBody.roleType === 1) {
+    requestBody.sessionKey = nanoid();
+  }
+  console.log("req body", requestBody);
   const validationErrors = validateRequest(requestBody, validator)
 
   if (validationErrors.length > 0) {
-    return res.status(400).json({ errors: validationErrors })
+    // return res.status(400).json({ errors: validationErrors })
   }
 
   const {
-    role,
+    roleType,
     sessionName,
     expirationSeconds,
-    userIdentity,
+    // userIdentity,
+    password = '',
     sessionKey,
-    geoRegions,
-    cloudRecordingOption,
-    cloudRecordingElection,
-    audioCompatibleMode
   } = requestBody
 
   const iat = Math.floor(Date.now() / 1000)
   const exp = expirationSeconds ? iat + expirationSeconds : iat + 60 * 60 * 2
   const oHeader = { alg: 'HS256', typ: 'JWT' }
 
-  const oPayload = {
+  let oPayload = {
     app_key: process.env.ZOOM_VIDEO_SDK_KEY,
-    role_type: role,
+    role_type: roleType,
     tpc: sessionName,
     version: 1,
     iat,
     exp,
-    user_identity: userIdentity,
-    session_key: sessionKey,
-    geo_regions: joinGeoRegions(geoRegions),
-    cloud_recording_option: cloudRecordingOption,
-    cloud_recording_election: cloudRecordingElection,
-    audio_compatible_mode: audioCompatibleMode
+    password,
+    // user_identity: userIdentity,
+    // geo_regions: joinGeoRegions(geoRegions),
+    // cloud_recording_option: cloudRecordingOption,
+    // cloud_recording_election: cloudRecordingElection,
+    // audio_compatible_mode: audioCompatibleMode
   }
 
+  if(sessionKey) {
+    // oPayload.session_key = sessionKey;
+  }
+  console.log("payload", oPayload)
   const sHeader = JSON.stringify(oHeader)
   const sPayload = JSON.stringify(oPayload)
   const sdkJWT = KJUR.jws.JWS.sign('HS256', sHeader, sPayload, process.env.ZOOM_VIDEO_SDK_SECRET)
